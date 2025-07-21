@@ -1,6 +1,12 @@
-import { model, Schema } from "mongoose";
-import { IAddress, IUser } from "../interfaces/user.interfaces";
+import { Model, model, Schema } from "mongoose";
+import {
+  IAddress,
+  IUser,
+  UserStaticMethods,
+} from "../interfaces/user.interfaces";
 import validator from "validator";
+import { UserInstanceMethods } from "./../interfaces/user.interfaces";
+import bcrypt from "bcryptjs";
 
 const addressSchema = new Schema<IAddress>(
   {
@@ -13,7 +19,7 @@ const addressSchema = new Schema<IAddress>(
   }
 );
 
-const userSchema = new Schema<IUser>(
+const userSchema = new Schema<IUser, UserStaticMethods, UserInstanceMethods>(
   {
     firstName: {
       type: String,
@@ -71,4 +77,22 @@ const userSchema = new Schema<IUser>(
   }
 );
 
-export const User = model("User", userSchema);
+userSchema.method("hashPassword", async function (plainPassword: string) {
+  const password = await bcrypt.hash(plainPassword, 10);
+  return password;
+});
+
+userSchema.static("hashPassword", async function (plainPassword: string) {
+  const password = await bcrypt.hash(plainPassword, 10);
+  return password;
+});
+
+userSchema.pre("save", async function () {
+  this.password = await bcrypt.hash(this.password, 10);
+});
+
+userSchema.post("save", function (doc) {
+  console.log("%s Inside post save hook", doc._id);
+});
+
+export const User = model<IUser, UserStaticMethods>("User", userSchema);
